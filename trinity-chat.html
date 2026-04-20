@@ -270,21 +270,47 @@
 // The network grows as nodes remember each other in peers.json.
 // ═══════════════════════════════════════════════════════════════════
 
-const BOOTSTRAP_URLS = [
-  // Your own node (served this page) — always tried first
-  (() => {
-    if (window.location.protocol === 'file:') return 'ws://localhost:8080'
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${proto}//${window.location.host}`
-  })(),
-  // ── Add friend nodes here. Anyone running trinity-node.js. ──────
-  'ws://216.189.134.247:8080',
-  // 'ws://friendsip:8080',
-  // ── Public WebTorrent trackers work as wss:// rendezvous too ────
-  // These are massive always-on WebSocket servers, free to use.
-  'wss://tracker.openwebtorrent.com',
-  'wss://tracker.files.fm:7073/announce',
-]
+// ── Self URL (the node that served this page) ───────────────────
+const SELF_NODE_URL = (() => {
+  if (window.location.protocol === 'file:') return 'ws://localhost:8080'
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${proto}//${window.location.host}`
+})()
+
+// ── Bootstrap list — built dynamically at startup ───────────────
+// We ask our own node for its /peers list, which contains the real
+// public URLs of every node it has ever federated with. That list
+// is what we use for signalling so cross-internet peers just work.
+let BOOTSTRAP_URLS = [SELF_NODE_URL]
+
+async function loadBootstrapPeers() {
+  try {
+    const base = window.location.protocol === 'file:'
+      ? 'http://localhost:8080'
+      : window.location.origin
+    const res  = await fetch(`${base}/peers`, { cache: 'no-store' })
+    if (!res.ok) return
+    const data = await res.json()
+    // data.self  = this node's public ws:// URL
+    // data.peers = all known peer ws:// URLs
+    const urls = [data.self, ...(data.peers || [])]
+      .filter(Boolean)
+      .map(u => u.trim())
+      .filter(u => u.startsWith('ws'))
+    // Deduplicate, put self first
+    const seen = new Set()
+    BOOTSTRAP_URLS = []
+    for (const u of urls) {
+      if (!seen.has(u)) { seen.add(u); BOOTSTRAP_URLS.push(u) }
+    }
+    // Always fall back to public WebTorrent trackers as last resort
+    for (const t of ['wss://tracker.openwebtorrent.com', 'wss://tracker.files.fm:7073/announce']) {
+      if (!seen.has(t)) BOOTSTRAP_URLS.push(t)
+    }
+  } catch {
+    // Keep whatever we have — no change
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPERS
@@ -1082,7 +1108,10 @@ const av = document.getElementById('self-avatar')
 av.textContent = getInitials(SELF.name)
 av.style.cssText = `background:#111;border:2px solid ${SELF.color};color:${SELF.color};`
 document.getElementById('self-name').textContent = SELF.name
-document.getElementById('node-subtitle').textContent = `sovereign mesh · ${BOOTSTRAP_URLS[0]}`
+document.getElementById('node-subtitle').textContent = `sovereign mesh · ${SELF_NODE_URL}`
+
+// Load real peer list from node (gets public IPs) then join rooms
+loadBootstrapPeers().catch(() => {})
 
 // Seed default rooms
 const INITIAL_ROOMS = ['general', 'random', 'dev-talk']

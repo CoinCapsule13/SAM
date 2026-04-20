@@ -1,52 +1,79 @@
 /**
- * trinity-node.js — v3 (final)
+ * trinity-node.js — v4
  * ─────────────────────────────────────────────────────────────────────
  * Drop on any machine. Run with:
  *
  *   node trinity-node.js
  *
- * First time: just run it. It saves a peers.json next to itself.
- * Any node it ever talks to gets remembered there permanently.
+ * That's it. No config needed. The node auto-detects its public IP,
+ * announces it to peers, and saves everyone it meets to peers.json.
  * Next boot it dials everyone it has ever known automatically.
  *
- * To bootstrap a brand new node to the internet:
- *   TRINITY_PEERS=ws://someip:8080 node trinity-node.js
+ * To bootstrap a brand-new node to a friend across the internet:
+ *   TRINITY_PEERS=ws://theirpublicip:8080 node trinity-node.js
  *   — after that one run, peers.json handles it forever.
  *
- * Env vars:
- *   PORT=8080
- *   TRINITY_PEERS=ws://ip1:port,ws://ip2:port
+ * Env vars (all optional):
+ *   PORT=8080                         — listen port (default 8080)
+ *   TRINITY_PEERS=ws://ip:port,...    — bootstrap peers
+ *   TRINITY_SELF=ws://1.2.3.4:8080   — override public URL (rare)
  * ─────────────────────────────────────────────────────────────────────
  */
 
-import { createServer }                    from "http"
+import { createServer }               from "http"
 import { readFileSync, existsSync,
-         writeFileSync }                   from "fs"
-import { randomUUID }                      from "node:crypto"
-import { WebSocketServer, WebSocket }      from "ws"
-import { networkInterfaces }               from "os"
-import path                                from "path"
-import { fileURLToPath }                   from "url"
+         writeFileSync }              from "fs"
+import { randomUUID }                 from "node:crypto"
+import { WebSocketServer, WebSocket } from "ws"
+import { networkInterfaces }          from "os"
+import path                           from "path"
+import { fileURLToPath }              from "url"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
 
-const PORT                  = Number(process.env.PORT || 8080)
+const PORT               = Number(process.env.PORT || 8080)
 const PEER_ANNOUNCE_INTERVAL = 20_000
-const PEERS_FILE            = path.join(__dirname, "peers.json")
+const PEERS_FILE         = path.join(__dirname, "peers.json")
 
-// Seed peers from env — after first connect they're saved to peers.json
 const BOOTSTRAP_ENV = (process.env.TRINITY_PEERS || "")
   .split(",").map(s => s.trim()).filter(Boolean)
 
-// ─── PERSISTENT PEER MEMORY ──────────────────────────────────────────────────
-// Every URL we ever successfully connect to is saved to peers.json.
-// On boot we load it and dial everyone we've ever known.
+// ─── PUBLIC IP AUTO-DETECTION ────────────────────────────────────────────────
+// We ask a lightweight public service for our WAN IP so federation
+// announcements carry an address peers across the internet can reach.
+// Falls back to LAN IP if the fetch fails (air-gapped / no internet).
+
+let PUBLIC_IP = null   // resolved at boot before we start accepting conns
+
+async function detectPublicIP() {
+  // Try a few services in order — first success wins
+  const services = [
+    "https://api4.my-ip.io/ip",
+    "https://api.ipify.org",
+    "https://icanhazip.com",
+    "https://checkip.amazonaws.com",
+  ]
+  for (const url of services) {
+    try {
+      // Node 18+ has built-in fetch
+      const res  = await fetch(url, { signal: AbortSignal.timeout(3000) })
+      const text = (await res.text()).trim()
+      // Basic IPv4 sanity check
+      if (/^\d{1,3}(\.\d{1,3}){3}$/.test(text)) {
+        return text
+      }
+    } catch {}
+  }
+  return null
+}
+
+// ─── PERSISTENT PEER MEMORY ───────────────────────────────────────────────────
 
 function loadSavedPeers() {
   try {
-    const raw = readFileSync(PEERS_FILE, "utf8")
+    const raw  = readFileSync(PEERS_FILE, "utf8")
     const list = JSON.parse(raw)
     if (Array.isArray(list)) return list.filter(s => typeof s === "string")
   } catch {}
@@ -59,15 +86,18 @@ function savePeers(urlSet) {
 
 const knownPeerUrls = new Set([...loadSavedPeers(), ...BOOTSTRAP_ENV])
 
-// ─── SIGNAL SERVER STATE ─────────────────────────────────────────────────────
+// ─── SIGNAL SERVER STATE ──────────────────────────────────────────────────────
 
 const rooms          = new Map()   // roomId → Map<peerId, { ws, identity, nodeUrl }>
 const federatedPeers = new Map()   // url    → { ws, status }
 const peerNodeIndex  = new Map()   // peerId → nodeUrl (null = local)
 
-// ─── HTTP + WEBSOCKET SERVER ─────────────────────────────────────────────────
+// ─── HTTP + WEBSOCKET SERVER ──────────────────────────────────────────────────
 
 const httpServer = createServer((req, res) => {
+  // CORS — allow browser clients from any origin
+  res.setHeader("Access-Control-Allow-Origin", "*")
+
   if (req.url === "/health") {
     return respondJson(res, 200, {
       ok: true,
@@ -86,7 +116,6 @@ const httpServer = createServer((req, res) => {
     })
   }
 
-  // /peers — returns our full known peer list so crawlers can build the ledger
   if (req.url === "/peers") {
     return respondJson(res, 200, {
       self: selfUrl(),
@@ -131,7 +160,6 @@ function handleBrowserConnection(ws) {
     const data = safeJsonParse(raw)
     if (!data) return
 
-    // ── JOIN ──────────────────────────────────────────────────────────
     if (data.type === "join") {
       roomId = sanitize(data.room)
       if (!roomId) return
@@ -140,23 +168,17 @@ function handleBrowserConnection(ws) {
       if (!rooms.has(roomId)) rooms.set(roomId, new Map())
       const room = rooms.get(roomId)
 
-      // Tell joining peer about everyone already in the room
       send(ws, { type: "peers", peers: Array.from(room.keys()) })
-
-      // Announce new peer to existing local browsers
       room.forEach(peer => { if (peer.ws) send(peer.ws, { type: "peer-join", peerId }) })
-
       room.set(peerId, { ws, identity: peerIdentity, nodeUrl: null })
       peerNodeIndex.set(peerId, null)
 
-      // Tell federated nodes
       federateSend({ type: "_fed_peer_join", roomId, peerId, identity: peerIdentity, fromNode: selfUrl() })
       return
     }
 
     if (!roomId) return
 
-    // ── SIGNAL (WebRTC handshake routing) ────────────────────────────
     if (data.type === "signal") {
       const room   = rooms.get(roomId)
       if (!room) return
@@ -171,7 +193,6 @@ function handleBrowserConnection(ws) {
       return
     }
 
-    // ── BROADCAST (chat events) ───────────────────────────────────────
     const room = rooms.get(roomId)
     if (!room) return
     room.forEach((peer, id) => {
@@ -192,11 +213,10 @@ function handleBrowserConnection(ws) {
   })
 }
 
-// ─── FEDERATION MESSAGE HANDLER (shared by inbound + outbound) ───────────────
+// ─── FEDERATION MESSAGE HANDLER ───────────────────────────────────────────────
 
 function handleFederationMessage(data, replyWs) {
 
-  // ── ANNOUNCE (initial handshake between nodes) ────────────────────
   if (data.type === "_fed_announce") {
     const peerUrl = data.selfUrl
     if (peerUrl && peerUrl !== selfUrl()) {
@@ -205,14 +225,11 @@ function handleFederationMessage(data, replyWs) {
         federatedPeers.set(peerUrl, { ws: null, status: "discovered" })
         dialPeer(peerUrl)
       }
-      // Persist — this peer is now known forever
       knownPeerUrls.add(peerUrl)
       savePeers(knownPeerUrls)
 
-      // Reply with our peer list
       if (replyWs?.readyState === 1) {
         replyWs.send(JSON.stringify({ type: "_fed_peers", peers: [...knownPeerUrls] }))
-        // Also send our current room snapshot so they can build stubs immediately
         const snapshot = {}
         rooms.forEach((room, rId) => {
           snapshot[rId] = Array.from(room.entries())
@@ -225,7 +242,6 @@ function handleFederationMessage(data, replyWs) {
     return
   }
 
-  // ── PEER LIST (gossip more known peers) ──────────────────────────
   if (data.type === "_fed_peers") {
     ;(data.peers || []).forEach(url => {
       if (url === selfUrl()) return
@@ -240,7 +256,6 @@ function handleFederationMessage(data, replyWs) {
     return
   }
 
-  // ── ROOM SNAPSHOT (populate stubs for remote peers) ──────────────
   if (data.type === "_fed_room_snapshot") {
     const { fromNode, snapshot = {} } = data
     Object.entries(snapshot).forEach(([rId, peers]) => {
@@ -256,7 +271,6 @@ function handleFederationMessage(data, replyWs) {
     return
   }
 
-  // ── PEER JOIN (remote browser joined a room) ──────────────────────
   if (data.type === "_fed_peer_join") {
     const { roomId, peerId, identity, fromNode } = data
     if (!rooms.has(roomId)) rooms.set(roomId, new Map())
@@ -269,7 +283,6 @@ function handleFederationMessage(data, replyWs) {
     return
   }
 
-  // ── PEER LEAVE ────────────────────────────────────────────────────
   if (data.type === "_fed_peer_leave") {
     const { roomId, peerId } = data
     const room = rooms.get(roomId)
@@ -281,7 +294,6 @@ function handleFederationMessage(data, replyWs) {
     return
   }
 
-  // ── SIGNAL ROUTING (WebRTC signal destined for a local browser) ───
   if (data.type === "_fed_signal") {
     const { roomId, from, to, identity, signal } = data
     const room = rooms.get(roomId)
@@ -291,7 +303,6 @@ function handleFederationMessage(data, replyWs) {
     return
   }
 
-  // ── EVENT RELAY (chat messages crossing nodes) ────────────────────
   if (data.type === "_fed_event" && data.roomId) {
     const room = rooms.get(data.roomId)
     if (!room) return
@@ -345,7 +356,6 @@ function dialPeer(peerUrl) {
   ws.on("open", () => {
     console.log(`[fed] connected to ${peerUrl}`)
     federatedPeers.set(peerUrl, { ws, status: "connected" })
-    // Persist immediately on successful connect
     knownPeerUrls.add(peerUrl)
     savePeers(knownPeerUrls)
     ws.send(JSON.stringify({ type: "_fed_announce", selfUrl: selfUrl() }))
@@ -365,7 +375,7 @@ function dialPeer(peerUrl) {
   ws.on("error", () => {}) // handled by close
 }
 
-// ─── LAN DISCOVERY (UDP broadcast, no deps) ───────────────────────────────────
+// ─── LAN DISCOVERY ───────────────────────────────────────────────────────────
 
 function startLANDiscovery() {
   import("dgram").then(({ createSocket }) => {
@@ -410,8 +420,23 @@ function getLocalIP() {
   return "127.0.0.1"
 }
 
-function selfUrl()    { return `ws://${getLocalIP()}:${PORT}` }
-function getSelfInfo(){ return { ip: getLocalIP(), port: PORT, signalUrl: selfUrl(), chatUrl: `http://${getLocalIP()}:${PORT}` } }
+// Public URL: env override → detected public IP → LAN IP
+function selfUrl() {
+  if (process.env.TRINITY_SELF) return process.env.TRINITY_SELF
+  if (PUBLIC_IP) return `ws://${PUBLIC_IP}:${PORT}`
+  return `ws://${getLocalIP()}:${PORT}`
+}
+
+function getSelfInfo() {
+  const pub  = PUBLIC_IP || getLocalIP()
+  return {
+    ip:        pub,
+    localIp:   getLocalIP(),
+    port:      PORT,
+    signalUrl: selfUrl(),
+    chatUrl:   `http://${pub}:${PORT}`,
+  }
+}
 
 function send(ws, data) { if (ws.readyState === 1) ws.send(JSON.stringify(data)) }
 
@@ -440,38 +465,46 @@ function safeJsonParse(raw) {
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 
-httpServer.listen(PORT, "0.0.0.0", () => {
-  const info = getSelfInfo()
-  const saved = loadSavedPeers()
-  console.log("")
-  console.log("┌──────────────────────────────────────────────┐")
-  console.log("│  Trinity Node v3 — sovereign mesh            │")
-  console.log("├──────────────────────────────────────────────┤")
-  console.log(`│  Chat    : ${info.chatUrl.padEnd(34)}│`)
-  console.log(`│  Signal  : ${info.signalUrl.padEnd(34)}│`)
-  console.log(`│  Health  : ${(info.chatUrl + "/health").padEnd(34)}│`)
-  console.log(`│  Peers   : ${String(knownPeerUrls.size + " known").padEnd(34)}│`)
-  console.log("└──────────────────────────────────────────────┘")
-  console.log("")
-
-  // Dial everyone we've ever known
-  if (knownPeerUrls.size > 0) {
-    console.log(`[boot] dialing ${knownPeerUrls.size} known peer(s)...`)
-    knownPeerUrls.forEach(url => {
-      if (url !== selfUrl()) {
-        federatedPeers.set(url, { ws: null, status: "pending" })
-        dialPeer(url)
-      }
-    })
+// Detect public IP first, then start accepting connections
+console.log("[boot] detecting public IP…")
+detectPublicIP().then(ip => {
+  if (ip) {
+    PUBLIC_IP = ip
+    console.log(`[boot] public IP: ${ip}`)
   } else {
-    console.log("[boot] no known peers — waiting for LAN discovery or TRINITY_PEERS")
+    console.log(`[boot] public IP detection failed — using LAN IP ${getLocalIP()}`)
+    console.log(`[boot] if peering across the internet, set TRINITY_SELF=ws://YOUR_PUBLIC_IP:${PORT}`)
   }
 
-  // LAN auto-discovery
-  startLANDiscovery()
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    const info = getSelfInfo()
+    console.log("")
+    console.log("┌──────────────────────────────────────────────────┐")
+    console.log("│  Trinity Node v4 — sovereign mesh                │")
+    console.log("├──────────────────────────────────────────────────┤")
+    console.log(`│  Chat    : http://${info.ip}:${PORT}`.padEnd(51) + "│")
+    console.log(`│  Signal  : ${info.signalUrl}`.padEnd(51) + "│")
+    console.log(`│  Health  : http://${info.ip}:${PORT}/health`.padEnd(51) + "│")
+    console.log(`│  Peers   : ${String(knownPeerUrls.size + " known")}`.padEnd(51) + "│")
+    console.log("└──────────────────────────────────────────────────┘")
+    console.log("")
 
-  // Periodic re-dial (reconnects any that dropped)
-  setInterval(() => {
-    knownPeerUrls.forEach(url => { if (url !== selfUrl()) dialPeer(url) })
-  }, PEER_ANNOUNCE_INTERVAL)
+    if (knownPeerUrls.size > 0) {
+      console.log(`[boot] dialing ${knownPeerUrls.size} known peer(s)…`)
+      knownPeerUrls.forEach(url => {
+        if (url !== selfUrl()) {
+          federatedPeers.set(url, { ws: null, status: "pending" })
+          dialPeer(url)
+        }
+      })
+    } else {
+      console.log("[boot] no known peers — waiting for LAN discovery or TRINITY_PEERS")
+    }
+
+    startLANDiscovery()
+
+    setInterval(() => {
+      knownPeerUrls.forEach(url => { if (url !== selfUrl()) dialPeer(url) })
+    }, PEER_ANNOUNCE_INTERVAL)
+  })
 })
