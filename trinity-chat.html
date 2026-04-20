@@ -424,9 +424,8 @@ function persist(app, key) {
 
 function createWebRTCTransport(roomId, options = {}) {
   const {
-    bootstrapUrls = BOOTSTRAP_URLS,
-    maxPeers      = 24,
-    gossipTTL     = 3,
+    maxPeers  = 24,
+    gossipTTL = 3,
   } = options
 
   const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
@@ -441,9 +440,11 @@ function createWebRTCTransport(roomId, options = {}) {
   let destroyed      = false
 
   // ── Multi-bootstrap: try each URL in rotation ──────────────────
+  // Always reads BOOTSTRAP_URLS live so peer-fetch updates are used
   function connectSignal() {
     if (destroyed) return
-    const url = bootstrapUrls[socketIndex % bootstrapUrls.length]
+    const urls = BOOTSTRAP_URLS.length ? BOOTSTRAP_URLS : [SELF_NODE_URL]
+    const url  = urls[socketIndex % urls.length]
     socketIndex++
     updateTransportStatus('connecting', `signal: ${url}`)
 
@@ -1110,8 +1111,11 @@ av.style.cssText = `background:#111;border:2px solid ${SELF.color};color:${SELF.
 document.getElementById('self-name').textContent = SELF.name
 document.getElementById('node-subtitle').textContent = `sovereign mesh · ${SELF_NODE_URL}`
 
-// Load real peer list from node (gets public IPs) then join rooms
-loadBootstrapPeers().catch(() => {})
+// Fire-and-forget — updates BOOTSTRAP_URLS in background
+// Transport reads it live so next reconnect gets fresh peer list
+loadBootstrapPeers().then(() => {
+  document.getElementById('node-subtitle').textContent = `sovereign mesh · ${BOOTSTRAP_URLS[0]}`
+}).catch(() => {})
 
 // Seed default rooms
 const INITIAL_ROOMS = ['general', 'random', 'dev-talk']
