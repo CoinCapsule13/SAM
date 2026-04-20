@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Trinity</title>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Share+Tech+Mono&family=Roboto+Slab:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --yellow:       #FFE600;
+    --white:        #FFFFFF;
+    --black:        #0A0A0A;
+    --black2:       #111111;
+    --black3:       #1A1A1A;
+    --black4:       #222222;
+    --border:       #333333;
+    --border-b:     #555555;
+    --green:        #00FF88;
+    --red:          #FF3333;
+    --blue:         #33AAFF;
+    --own-bg:       #2A2500;
+    --font-head:    'Special Elite', cursive;
+    --font-body:    'Roboto Slab', serif;
+    --font-mono:    'Share Tech Mono', monospace;
+    --radius:       3px;
+    --sidebar-w:    270px;
+    --accent:       #FFE600;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-body); background: var(--black); color: var(--white); height: 100dvh; display: flex; overflow: hidden; font-size: 16px; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--black2); }
+  ::-webkit-scrollbar-thumb { background: var(--border-b); border-radius: 3px; }
+
+  /* ── SIDEBAR ── */
+  #sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--black2); border-right: 2px solid var(--border); display: flex; flex-direction: column; transition: transform 0.2s; }
+  .sidebar-header { padding: 18px 16px 14px; border-bottom: 2px solid var(--border); }
+  .app-title { font-family: var(--font-head); font-size: 28px; color: var(--yellow); letter-spacing: 3px; text-transform: uppercase; line-height: 1; margin-bottom: 4px; }
+  .app-subtitle { font-family: var(--font-mono); font-size: 11px; color: #888; letter-spacing: 1px; }
+  .rooms-label { font-family: var(--font-mono); font-size: 11px; color: var(--yellow); letter-spacing: 3px; text-transform: uppercase; padding: 14px 16px 8px; display: flex; align-items: center; justify-content: space-between; }
+  .rooms-list { flex: 1; overflow-y: auto; }
+  .room-item { padding: 10px 16px; cursor: pointer; border-left: 4px solid transparent; transition: background 0.1s, border-color 0.1s; display: flex; align-items: center; gap: 10px; }
+  .room-item:hover { background: var(--black3); }
+  .room-item.active { background: var(--black4); border-left-color: var(--yellow); }
+  .room-hash { font-family: var(--font-head); font-size: 20px; color: var(--white); line-height: 1; flex-shrink: 0; }
+  .room-item.active .room-hash { color: var(--yellow); }
+  .room-info { flex: 1; min-width: 0; }
+  .room-name { font-family: var(--font-body); font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .room-item.active .room-name { color: var(--yellow); }
+  .room-meta { font-family: var(--font-mono); font-size: 11px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .room-unread { background: var(--yellow); color: var(--black); font-family: var(--font-mono); font-size: 11px; font-weight: bold; border-radius: 10px; padding: 2px 6px; min-width: 20px; text-align: center; flex-shrink: 0; }
+  .add-room-btn { padding: 12px 16px; display: flex; align-items: center; gap: 10px; border-top: 2px solid var(--border); cursor: pointer; color: #888; font-family: var(--font-mono); font-size: 12px; transition: color 0.1s; }
+  .add-room-btn:hover { color: var(--yellow); }
+  .new-room-form { padding: 8px 10px; display: none; gap: 6px; background: var(--black3); border-top: 2px solid var(--border); }
+  .new-room-form.visible { display: flex; }
+  .new-room-form input { flex: 1; background: var(--black); border: 2px solid var(--border); color: var(--white); font-family: var(--font-mono); font-size: 13px; padding: 7px 9px; border-radius: var(--radius); outline: none; }
+  .new-room-form input:focus { border-color: var(--yellow); }
+  .new-room-form button { background: var(--yellow); color: var(--black); border: none; font-family: var(--font-mono); font-size: 12px; font-weight: bold; padding: 7px 12px; border-radius: var(--radius); cursor: pointer; }
+  .identity-bar { padding: 12px 16px; border-top: 2px solid var(--border); display: flex; align-items: center; gap: 10px; background: var(--black); }
+  .identity-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 13px; font-weight: bold; flex-shrink: 0; }
+  .identity-name { flex: 1; font-family: var(--font-mono); font-size: 12px; color: var(--white); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .online-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+  /* ── MAIN ── */
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--black); }
+  .chat-header { padding: 14px 22px; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 14px; background: var(--black2); flex-shrink: 0; }
+  .chat-header-hash { font-family: var(--font-head); font-size: 28px; color: var(--yellow); line-height: 1; }
+  .chat-header-name { font-family: var(--font-head); font-size: 22px; color: var(--white); letter-spacing: 1px; flex: 1; }
+  .chat-header-meta { font-family: var(--font-mono); font-size: 11px; color: #888; letter-spacing: 1px; }
+  .peer-count { font-family: var(--font-mono); font-size: 12px; color: var(--green); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .peer-count-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  /* hamburger for mobile */
+  #menu-toggle { display: none; background: none; border: none; color: var(--yellow); cursor: pointer; padding: 4px; }
+
+  /* ── MESSAGES ── */
+  #messages { flex: 1; overflow-y: auto; padding: 20px 22px 10px; display: flex; flex-direction: column; gap: 2px; scrollbar-gutter: stable; }
+  .date-divider { text-align: center; margin: 20px 0 14px; display: flex; align-items: center; gap: 12px; }
+  .date-divider::before, .date-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .date-divider span { font-family: var(--font-mono); font-size: 11px; color: #888; letter-spacing: 2px; text-transform: uppercase; }
+  .msg-group { display: flex; gap: 12px; padding: 8px 12px; border-radius: var(--radius); transition: background 0.1s; border-left: 3px solid transparent; }
+  .msg-group:hover { background: var(--black2); }
+  .msg-group.own-msg { background: var(--own-bg); border-left-color: var(--yellow); }
+  .msg-group.own-msg:hover { background: #332B00; }
+  .msg-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 13px; font-weight: bold; flex-shrink: 0; margin-top: 2px; border: 2px solid var(--border); }
+  .msg-body { flex: 1; min-width: 0; }
+  .msg-meta { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
+  .msg-author { font-family: var(--font-body); font-size: 15px; font-weight: 600; line-height: 1; }
+  .msg-time { font-family: var(--font-mono); font-size: 11px; color: #888; }
+  .msg-verified { font-family: var(--font-mono); font-size: 10px; color: var(--green); letter-spacing: 1px; }
+  .msg-text { font-family: var(--font-body); font-size: 17px; color: var(--white); line-height: 1.65; word-break: break-word; white-space: pre-wrap; }
+  .system-msg { text-align: center; font-family: var(--font-mono); font-size: 12px; color: #888; padding: 8px 0; font-style: italic; }
+
+  /* ── PRESENCE ── */
+  #presence-strip { padding: 6px 22px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; min-height: 34px; flex-shrink: 0; overflow-x: auto; background: var(--black2); }
+  .presence-label { font-family: var(--font-mono); font-size: 11px; color: var(--yellow); letter-spacing: 2px; white-space: nowrap; flex-shrink: 0; }
+  .presence-peer { display: flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; border-radius: 12px; white-space: nowrap; flex-shrink: 0; border: 1px solid var(--border); color: var(--white); background: var(--black3); }
+  .presence-peer-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .typing-indicator { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: #888; font-style: italic; }
+  .typing-dots { display: flex; gap: 3px; align-items: center; }
+  .typing-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--yellow); animation: typePulse 1.2s infinite ease-in-out; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typePulse { 0%,80%,100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
+
+  /* ── INPUT ── */
+  .input-area { padding: 12px 22px 16px; flex-shrink: 0; background: var(--black); }
+  .input-wrapper { display: flex; align-items: flex-end; gap: 10px; background: var(--black2); border: 2px solid var(--border); border-radius: 6px; padding: 10px 14px; transition: border-color 0.15s; }
+  .input-wrapper::before { content: '>'; font-family: var(--font-mono); font-size: 20px; color: var(--yellow); flex-shrink: 0; line-height: 1.4; }
+  .input-wrapper:focus-within { border-color: var(--yellow); }
+  #msg-input { flex: 1; background: transparent; border: none; outline: none; color: var(--white); font-family: var(--font-body); font-size: 17px; line-height: 1.5; resize: none; max-height: 140px; min-height: 28px; overflow-y: auto; padding: 0; }
+  #msg-input::placeholder { color: #666; }
+  .send-btn { background: var(--yellow); border: none; border-radius: var(--radius); width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.1s, transform 0.1s; color: var(--black); }
+  .send-btn:hover { background: var(--white); }
+  .send-btn:active { transform: scale(0.95); }
+  .send-btn:disabled { background: var(--border); color: #666; cursor: default; }
+  .input-hint { font-family: var(--font-mono); font-size: 11px; color: #555; margin-top: 6px; padding: 0 2px; letter-spacing: 0.5px; }
+
+  /* ── EMPTY STATE ── */
+  #empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 40px; text-align: center; }
+  .empty-title { font-family: var(--font-head); font-size: 36px; color: var(--yellow); letter-spacing: 4px; }
+  .empty-sub { font-family: var(--font-mono); font-size: 13px; color: #888; letter-spacing: 1px; max-width: 320px; line-height: 1.7; }
+
+  /* ── STATUS BAR ── */
+  .status-bar { padding: 4px 22px; border-top: 2px solid var(--border); display: flex; align-items: center; gap: 16px; flex-shrink: 0; background: var(--black2); flex-wrap: wrap; }
+  .status-item { font-family: var(--font-mono); font-size: 10px; color: #888; letter-spacing: 1px; display: flex; align-items: center; gap: 5px; }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .status-dot.online { background: var(--green); }
+  .status-dot.connecting { background: var(--yellow); animation: pulse 1s infinite; }
+  .status-dot.p2p { background: var(--blue); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── TOAST ── */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--black2); border: 2px solid var(--yellow); padding: 10px 16px; font-family: var(--font-mono); font-size: 13px; color: var(--yellow); border-radius: var(--radius); opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 100; max-width: 300px; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── PASTE MODAL (manual connect fallback) ── */
+  #paste-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+  #paste-modal.open { display: flex; }
+  .paste-box { background: var(--black2); border: 2px solid var(--yellow); border-radius: 4px; padding: 24px; max-width: 540px; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+  .paste-title { font-family: var(--font-head); font-size: 22px; color: var(--yellow); letter-spacing: 2px; }
+  .paste-sub { font-family: var(--font-mono); font-size: 12px; color: #aaa; line-height: 1.6; }
+  .paste-offer { font-family: var(--font-mono); font-size: 11px; background: var(--black); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; color: var(--green); word-break: break-all; max-height: 120px; overflow-y: auto; user-select: all; cursor: text; }
+  .paste-input { width: 100%; background: var(--black); border: 2px solid var(--border); border-radius: var(--radius); color: var(--white); font-family: var(--font-mono); font-size: 11px; padding: 10px; resize: vertical; min-height: 80px; outline: none; }
+  .paste-input:focus { border-color: var(--yellow); }
+  .paste-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .paste-btn { background: var(--yellow); color: var(--black); border: none; font-family: var(--font-mono); font-size: 12px; font-weight: bold; padding: 9px 16px; border-radius: var(--radius); cursor: pointer; }
+  .paste-btn.sec { background: var(--black3); color: var(--white); border: 1px solid var(--border); }
+  .paste-btn:hover { filter: brightness(1.1); }
+
+  /* ── MOBILE ── */
+  @media (max-width: 600px) {
+    #sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 50; transform: translateX(-100%); }
+    #sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.8); }
+    #menu-toggle { display: block; }
+    #main { width: 100%; }
+    #messages { padding: 14px 14px 8px; }
+    .chat-header { padding: 12px 14px; }
+    .input-area { padding: 10px 14px 14px; }
+    .status-bar { padding: 4px 14px; }
+    #presence-strip { padding: 6px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="sidebar-header">
+    <div class="app-title">Trinity</div>
+    <div class="app-subtitle" id="node-subtitle">sovereign mesh · loading…</div>
+  </div>
+  <div class="rooms-label">
+    <span>Rooms</span>
+    <span id="room-count" style="color:var(--yellow);font-size:13px;font-weight:bold;">0</span>
+  </div>
+  <div class="rooms-list" id="rooms-list"></div>
+  <div class="add-room-btn" id="add-room-toggle">
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" stroke-width="1.5"/><line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" stroke-width="1.5"/></svg>
+    new room
+  </div>
+  <div class="new-room-form" id="new-room-form">
+    <input type="text" id="room-input" placeholder="room-name" maxlength="32"/>
+    <button id="room-create-btn">ok</button>
+  </div>
+  <div class="add-room-btn" id="manual-connect-btn" style="border-top:none;">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 8h12M8 2v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    manual connect
+  </div>
+  <div class="identity-bar">
+    <div class="identity-avatar" id="self-avatar"></div>
+    <div class="identity-name" id="self-name"></div>
+    <div class="online-dot" id="online-dot" style="background:var(--yellow)"></div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="empty-state">
+    <div class="empty-title">// trinity</div>
+    <div class="empty-sub">Select a room from the sidebar to begin.<br>Your node is searching for peers.</div>
+  </div>
+
+  <div id="chat-view" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+    <div class="chat-header">
+      <button id="menu-toggle" aria-label="menu">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><line x1="2" y1="5" x2="18" y2="5" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="15" x2="18" y2="15" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <div class="chat-header-hash">#</div>
+      <div style="flex:1;min-width:0;">
+        <div class="chat-header-name" id="header-room-name">—</div>
+        <div class="chat-header-meta" id="header-room-meta">connecting…</div>
+      </div>
+      <div class="peer-count" id="peer-count">
+        <div class="peer-count-dot"></div>
+        <span id="peer-count-num">1</span> online
+      </div>
+    </div>
+
+    <div id="messages"></div>
+
+    <div id="presence-strip">
+      <div class="presence-label">IN ROOM:</div>
+      <div id="presence-peers"></div>
+      <div id="typing-area" style="display:none;" class="typing-indicator">
+        <div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>
+        <span id="typing-name"></span>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrapper">
+        <textarea id="msg-input" rows="1" placeholder="write your message…" maxlength="2000"></textarea>
+        <button class="send-btn" id="send-btn" disabled>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 8L14 2L10 8L14 14L2 8Z" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <div class="input-hint" id="input-hint">enter · shift+enter for newline</div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-item"><div class="status-dot connecting" id="transport-dot"></div><span id="status-transport">connecting…</span></div>
+      <div class="status-item"><div class="status-dot p2p"></div><span id="peer-count-status">0 peers</span></div>
+      <div class="status-item"><span id="log-count">0 events</span></div>
+      <div class="status-item" style="color:#555"><span id="signal-url-status">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Manual connect modal -->
+<div id="paste-modal">
+  <div class="paste-box">
+    <div class="paste-title">Manual Connect</div>
+    <div class="paste-sub" id="paste-step-label">Share this offer with your peer any way you like — text, email, anything.</div>
+    <div class="paste-offer" id="paste-offer-text">generating offer…</div>
+    <button class="paste-btn sec" id="paste-copy-btn" style="align-self:flex-start;">copy offer</button>
+    <div class="paste-sub">Paste their answer (or their offer) below:</div>
+    <textarea class="paste-input" id="paste-input" placeholder="paste here…"></textarea>
+    <div class="paste-actions">
+      <button class="paste-btn" id="paste-submit-btn">connect</button>
+      <button class="paste-btn sec" id="paste-close-btn">cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict'
+// ═══════════════════════════════════════════════════════════════════
+// BOOTSTRAP — hardcoded rendezvous points, tried in order.
+// Add your own IP here so friends can find you without configuration.
+// The network grows as nodes remember each other in peers.json.
+// ═══════════════════════════════════════════════════════════════════
+
+const BOOTSTRAP_URLS = [
+  // Your own node (served this page) — always tried first
+  (() => {
+    if (window.location.protocol === 'file:') return 'ws://localhost:8080'
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${proto}//${window.location.host}`
+  })(),
+  // ── Add friend nodes here. Anyone running trinity-node.js. ──────
+  // 'ws://216.189.134.247:8080',
+  // 'ws://friendsip:8080',
+  // ── Public WebTorrent trackers work as wss:// rendezvous too ────
+  // These are massive always-on WebSocket servers, free to use.
+  'wss://tracker.openwebtorrent.com',
+  'wss://tracker.files.fm:7073/announce',
+]
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = typeof crypto !== 'undefined' && crypto.getRandomValues
+      ? crypto.getRandomValues(new Uint8Array(1))[0] & 15
+      : Math.random() * 16 | 0
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
+  })
+}
+
+function safeJsonParse(raw) {
+  try { return JSON.parse(typeof raw === 'string' ? raw : String(raw)) } catch { return null }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CRYPTO IDENTITY — keypair generated once, stored in localStorage.
+// Messages are signed. Recipients can verify without any server.
+// ═══════════════════════════════════════════════════════════════════
+
+const CryptoID = (() => {
+  const KEY_STORE = 'trinity-keypair-v1'
+  let _pub = null, _priv = null
+
+  async function init() {
+    const stored = safeJsonParse(localStorage.getItem(KEY_STORE))
+    if (stored?.pub && stored?.priv) {
+      try {
+        _pub  = await crypto.subtle.importKey('jwk', stored.pub,  { name: 'ECDSA', namedCurve: 'P-256' }, true, [])
+        _priv = await crypto.subtle.importKey('jwk', stored.priv, { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign'])
+        return
+      } catch {}
+    }
+    // Generate fresh keypair
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
+    _pub  = kp.publicKey
+    _priv = kp.privateKey
+    const pub  = await crypto.subtle.exportKey('jwk', _pub)
+    const priv = await crypto.subtle.exportKey('jwk', _priv)
+    localStorage.setItem(KEY_STORE, JSON.stringify({ pub, priv }))
+  }
+
+  async function sign(text) {
+    if (!_priv) return null
+    try {
+      const buf = new TextEncoder().encode(text)
+      const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, _priv, buf)
+      return btoa(String.fromCharCode(...new Uint8Array(sig)))
+    } catch { return null }
+  }
+
+  async function verify(text, sigB64, pubJwk) {
+    try {
+      const pub = await crypto.subtle.importKey('jwk', pubJwk, { name: 'ECDSA', namedCurve: 'P-256' }, true, ['verify'])
+      const buf = new TextEncoder().encode(text)
+      const sig = Uint8Array.from(atob(sigB64), c => c.charCodeAt(0))
+      return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pub, sig, buf)
+    } catch { return false }
+  }
+
+  async function getPubJwk() {
+    if (!_pub) return null
+    return crypto.subtle.exportKey('jwk', _pub)
+  }
+
+  return { init, sign, verify, getPubJwk }
+})()
+
+// ═══════════════════════════════════════════════════════════════════
+// TRINITY CORE — event log + reducer
+// ═══════════════════════════════════════════════════════════════════
+
+function createApp({ init, reduce }) {
+  let state = init
+  const listeners = []
+  const log = []
+
+  function emit(event) {
+    if (event._ephemeral) { listeners.forEach(l => l(state, event)); return }
+    const stamped = { ...event, _seq: log.length, _ts: event._ts ?? Date.now(), _id: event._id ?? generateUUID() }
+    log.push(stamped)
+    state = reduce(state, stamped)
+    listeners.forEach(l => l(state, stamped))
+  }
+
+  function subscribe(fn) {
+    listeners.push(fn)
+    return () => { const i = listeners.indexOf(fn); if (i !== -1) listeners.splice(i, 1) }
+  }
+
+  function replay(events) {
+    const seen = new Set(log.map(e => e._id))
+    events.filter(e => !seen.has(e._id)).sort((a, b) => (a._ts ?? 0) - (b._ts ?? 0)).forEach(e => emit(e))
+  }
+
+  return { emit, subscribe, replay, getState: () => state, get log() { return log } }
+}
+
+function persist(app, key) {
+  try { const s = JSON.parse(localStorage.getItem(key) || '[]'); if (s.length) app.replay(s) } catch {}
+  app.subscribe(() => { try { localStorage.setItem(key, JSON.stringify(app.log)) } catch {} })
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WEBRTC TRANSPORT — full mesh + gossip + multi-bootstrap
+// ═══════════════════════════════════════════════════════════════════
+
+function createWebRTCTransport(roomId, options = {}) {
+  const {
+    bootstrapUrls = BOOTSTRAP_URLS,
+    maxPeers      = 24,
+    gossipTTL     = 3,
+  } = options
+
+  const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
+  const peers     = new Map()
+  const listeners = []
+  const seen      = new Set()
+  const eventLog  = []
+  let selfId         = null
+  let activeSocket   = null
+  let socketIndex    = 0   // which bootstrap we're currently on
+  let connectedPeers = 0
+  let destroyed      = false
+
+  // ── Multi-bootstrap: try each URL in rotation ──────────────────
+  function connectSignal() {
+    if (destroyed) return
+    const url = bootstrapUrls[socketIndex % bootstrapUrls.length]
+    socketIndex++
+    updateTransportStatus('connecting', `signal: ${url}`)
+
+    let socket
+    try { socket = new WebSocket(url) } catch {
+      updateTransportStatus('offline', `unreachable: ${url}`)
+      setTimeout(connectSignal, 3000)
+      return
+    }
+    activeSocket = socket
+
+    socket.onopen = () => {
+      socket.send(JSON.stringify({ type: 'join', room: roomId, identity: { id: SELF.id, name: SELF.name } }))
+      updateTransportStatus('connected', `signal: ${url}`)
+      document.getElementById('online-dot').style.background = 'var(--green)'
+      document.getElementById('signal-url-status').textContent = url
+    }
+
+    socket.onmessage = async (msg) => {
+      const data = safeJsonParse(msg.data)
+      if (!data) return
+      if (data.type === 'init')       selfId = data.peerId
+      if (data.type === 'peers')      [...data.peers].filter(id => id !== selfId).slice(0, maxPeers).forEach(id => createPeer(id, true))
+      if (data.type === 'peer-join' && data.peerId !== selfId && peers.size < maxPeers) createPeer(data.peerId, false)
+      if (data.type === 'signal')     await handleSignal(data)
+      if (data.type === 'peer-leave') destroyPeer(data.peerId)
+    }
+
+    socket.onclose = () => {
+      if (destroyed) return
+      // Roll to next bootstrap
+      updateTransportStatus('reconnecting', 'rolling to next bootstrap…')
+      document.getElementById('online-dot').style.background = 'var(--yellow)'
+      setTimeout(connectSignal, 2000)
+    }
+
+    socket.onerror = () => {}
+  }
+
+  // ── Peer management ────────────────────────────────────────────
+  function createPeer(peerId, initiator) {
+    if (peers.has(peerId)) return
+    const pc   = new RTCPeerConnection({ iceServers: ICE })
+    const peer = { id: peerId, pc, dc: null, queue: [], pendingCandidates: [] }
+    peers.set(peerId, peer)
+
+    pc.onicecandidate = e => { if (e.candidate) signal(peerId, { candidate: e.candidate }) }
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'connected')  { connectedPeers++; updatePeerCount() }
+      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        try { pc.restartIce() } catch { destroyPeer(peerId) }
+      }
+      if (pc.connectionState === 'closed') destroyPeer(peerId)
+    }
+
+    if (initiator) {
+      const dc = pc.createDataChannel('trinity', { ordered: true })
+      setupDataChannel(peerId, dc)
+      ;(async () => {
+        const offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        signal(peerId, offer)
+      })().catch(() => destroyPeer(peerId))
+    } else {
+      pc.ondatachannel = e => setupDataChannel(peerId, e.channel)
+    }
+  }
+
+  function destroyPeer(peerId) {
+    const peer = peers.get(peerId)
+    if (!peer) return
+    try { peer.dc?.close() } catch {}
+    try { peer.pc.close()  } catch {}
+    peers.delete(peerId)
+    connectedPeers = Math.max(0, connectedPeers - 1)
+    updatePeerCount()
+  }
+
+  async function handleSignal({ from, signal: payload }) {
+    if (!peers.has(from)) createPeer(from, false)
+    const peer = peers.get(from)
+    if (!peer) return
+    if (payload.candidate) {
+      if (peer.pc.remoteDescription) await peer.pc.addIceCandidate(payload.candidate).catch(() => {})
+      else peer.pendingCandidates.push(payload.candidate)
+      return
+    }
+    await peer.pc.setRemoteDescription(payload)
+    while (peer.pendingCandidates.length) await peer.pc.addIceCandidate(peer.pendingCandidates.shift()).catch(() => {})
+    if (payload.type === 'offer') {
+      const answer = await peer.pc.createAnswer()
+      await peer.pc.setLocalDescription(answer)
+      signal(from, answer)
+    }
+  }
+
+  function signal(to, payload) {
+    if (activeSocket?.readyState === WebSocket.OPEN)
+      activeSocket.send(JSON.stringify({ type: 'signal', to, signal: payload }))
+  }
+
+  function setupDataChannel(peerId, dc) {
+    const peer = peers.get(peerId)
+    if (!peer) return
+    peer.dc = dc
+    dc.onopen = () => {
+      dc.send(JSON.stringify({ type: '_sync_response', events: [...eventLog], _ephemeral: true }))
+      flushQueue(peer)
+    }
+    dc.onmessage = e => handleChannelMessage(peerId, e.data)
+    dc.onclose   = () => { peer.dc = null }
+  }
+
+  function handleChannelMessage(peerId, raw) {
+    const msg = safeJsonParse(raw)
+    if (!msg) return
+    if (msg.type === '_sync_response' && msg._ephemeral) {
+      msg.events.forEach(event => {
+        if (seen.has(event._id)) return
+        seen.add(event._id)
+        eventLog.push(event)
+        listeners.forEach(fn => fn(event))
+      })
+      eventLog.sort((a, b) => (a._ts ?? 0) - (b._ts ?? 0))
+      return
+    }
+    if (msg._ephemeral) { listeners.forEach(fn => fn(msg)); return }
+    if (seen.has(msg._id)) return
+    seen.add(msg._id)
+    eventLog.push(msg)
+    listeners.forEach(fn => fn(msg))
+    if ((msg._ttl ?? 0) > 0) relayTo({ ...msg, _ttl: msg._ttl - 1 }, peerId)
+  }
+
+  function flushQueue(peer) {
+    if (!peer.dc || peer.dc.readyState !== 'open') return
+    while (peer.queue.length) try { peer.dc.send(peer.queue.shift()) } catch { break }
+  }
+
+  function broadcast(event) {
+    const enriched = { ...event, _id: event._id ?? generateUUID(), _ts: event._ts ?? Date.now(), _ttl: gossipTTL }
+    if (!enriched._ephemeral && !seen.has(enriched._id)) {
+      seen.add(enriched._id)
+      eventLog.push(enriched)
+      eventLog.sort((a, b) => (a._ts ?? 0) - (b._ts ?? 0))
+    }
+    relayTo(enriched, null)
+  }
+
+  function relayTo(event, excludeId) {
+    const payload = JSON.stringify(event)
+    peers.forEach((peer, id) => {
+      if (id === excludeId) return
+      if (peer.dc?.readyState === 'open') {
+        try { peer.dc.send(payload) } catch { peer.queue.push(payload) }
+      } else {
+        peer.queue.push(payload)
+      }
+    })
+  }
+
+  function onMessage(fn) {
+    listeners.push(fn)
+    return () => { const i = listeners.indexOf(fn); if (i !== -1) listeners.splice(i, 1) }
+  }
+
+  function destroy() {
+    destroyed = true
+    if (activeSocket) { activeSocket.onclose = null; activeSocket.onerror = null; try { activeSocket.close() } catch {} activeSocket = null }
+    peers.forEach((_, id) => destroyPeer(id))
+  }
+
+  connectSignal()
+
+  return {
+    broadcast, onMessage, destroy,
+    get peerCount() { return connectedPeers },
+    get peers()     { return peers },
+    // Manual paste connect — returns offer JSON string for sharing
+    async createManualOffer() {
+      const pc = new RTCPeerConnection({ iceServers: ICE })
+      const dc = pc.createDataChannel('trinity-manual', { ordered: true })
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(offer)
+      // Gather ICE candidates
+      await new Promise(res => {
+        pc.onicecandidate = e => { if (!e.candidate) res() }
+        setTimeout(res, 3000)
+      })
+      const offerStr = JSON.stringify({ sdp: pc.localDescription, _manual: true })
+      // Store pc for when the answer comes back
+      manualPeerConnections.set('pending', { pc, dc, role: 'offerer' })
+      dc.onopen = () => { dc.onmessage = e => handleChannelMessage('manual', e.data); flushQueue({ dc, queue: [] }) }
+      return offerStr
+    },
+    async acceptManualOffer(offerStr) {
+      const data = safeJsonParse(offerStr)
+      if (!data?.sdp) return null
+      const pc = new RTCPeerConnection({ iceServers: ICE })
+      await pc.setRemoteDescription(data.sdp)
+      pc.ondatachannel = e => {
+        const dc = e.channel
+        dc.onopen = () => { dc.onmessage = ev => handleChannelMessage('manual', ev.data) }
+      }
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+      await new Promise(res => {
+        pc.onicecandidate = e => { if (!e.candidate) res() }
+        setTimeout(res, 3000)
+      })
+      manualPeerConnections.set('pending', { pc, role: 'answerer' })
+      return JSON.stringify({ sdp: pc.localDescription, _manual: true })
+    },
+    async applyManualAnswer(answerStr) {
+      const data = safeJsonParse(answerStr)
+      if (!data?.sdp) return false
+      const entry = manualPeerConnections.get('pending')
+      if (!entry) return false
+      await entry.pc.setRemoteDescription(data.sdp)
+      peers.set('manual-' + Date.now(), { pc: entry.pc, dc: entry.dc, queue: [], pendingCandidates: [] })
+      return true
+    },
+  }
+}
+
+const manualPeerConnections = new Map()
+
+// ═══════════════════════════════════════════════════════════════════
+// IDENTITY
+// ═══════════════════════════════════════════════════════════════════
+
+const ADJECTIVES   = ['Amber','Cobalt','Crimson','Dusk','Emerald','Fern','Golden','Indigo','Jade','Lapis','Mauve','Neon','Onyx','Pearl','Quartz','Rose','Sage','Teal','Umber','Violet']
+const ANIMALS      = ['Axolotl','Capybara','Dingo','Emu','Ferret','Gecko','Hedgehog','Ibis','Jackal','Kiwi','Lemur','Meerkat','Narwhal','Okapi','Pangolin','Quokka','Raccoon','Salamander','Tapir','Uakari']
+const AVATAR_COLORS = ['#FFE600','#00FF88','#33AAFF','#FF3333','#FF9900','#CC44FF','#00DDFF','#FF66AA']
+
+function randomIdentity() {
+  return {
+    name:  `${ADJECTIVES[Math.floor(Math.random()*ADJECTIVES.length)]} ${ANIMALS[Math.floor(Math.random()*ANIMALS.length)]}`,
+    color: AVATAR_COLORS[Math.floor(Math.random()*AVATAR_COLORS.length)],
+    id:    generateUUID(),
+  }
+}
+
+let SELF = (() => {
+  try {
+    const s = JSON.parse(localStorage.getItem('trinity-identity'))
+    if (s?.name) {
+      if (!s.color) s.color = AVATAR_COLORS[Math.floor(Math.random()*AVATAR_COLORS.length)]
+      return s
+    }
+  } catch {}
+  const id = randomIdentity()
+  localStorage.setItem('trinity-identity', JSON.stringify(id))
+  return id
+})()
+
+function getInitials(name) { return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) }
+
+// ═══════════════════════════════════════════════════════════════════
+// CHAT APP STATE
+// ═══════════════════════════════════════════════════════════════════
+
+const chatApp = createApp({
+  init: { rooms: {} },
+  reduce(state, event) {
+    if (event.type === 'room.create') {
+      if (state.rooms[event.roomId]) return state
+      return { ...state, rooms: { ...state.rooms, [event.roomId]: { id: event.roomId, name: event.name, messages: [], createdAt: event._ts } } }
+    }
+    if (event.type === 'room.message') {
+      const room = state.rooms[event.roomId]
+      if (!room) return state
+      return { ...state, rooms: { ...state.rooms, [event.roomId]: { ...room, messages: [...room.messages, {
+        id: event._id, authorId: event.authorId, authorName: event.authorName,
+        authorColor: event.authorColor, text: event.text, ts: event._ts,
+        sig: event.sig, pubKey: event.pubKey, verified: null,
+      }] } } }
+    }
+    return state
+  }
+})
+
+persist(chatApp, 'trinity-chat-v3')
+
+// ═══════════════════════════════════════════════════════════════════
+// TRANSPORT LAYER
+// ═══════════════════════════════════════════════════════════════════
+
+let activeTransport      = null
+let currentTransportRoom = null
+
+function attachTransport(roomId) {
+  if (currentTransportRoom === roomId) return
+  if (activeTransport?.destroy) activeTransport.destroy()
+  currentTransportRoom = roomId
+  activeTransport = createWebRTCTransport(roomId)
+  activeTransport.onMessage(event => chatApp.replay([event]))
+}
+
+// Outgoing events → broadcast
+chatApp.subscribe((state, event) => {
+  if (!event._ephemeral && activeTransport && currentTransportRoom) {
+    if (event.type === 'room.create' || event.roomId === currentTransportRoom) {
+      activeTransport.broadcast(event)
+    }
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════════
+// PRESENCE (ephemeral, in-memory)
+// ═══════════════════════════════════════════════════════════════════
+
+const presenceMap = new Map()
+
+function updatePresence(roomId) {
+  if (!presenceMap.has(roomId)) presenceMap.set(roomId, new Map())
+  presenceMap.get(roomId).set(SELF.id, { ...SELF, _ts: Date.now() })
+}
+
+function getPresence(roomId) {
+  if (!presenceMap.has(roomId)) return [{ ...SELF }]
+  const now = Date.now()
+  return Array.from(presenceMap.get(roomId).values()).filter(p => now - p._ts < 30000)
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════════════════════════
+
+let currentRoom  = null
+const unreadCounts = {}
+let lastMsgDate  = null
+
+function formatTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+function formatDate(ts) {
+  const d = new Date(ts), today = new Date(), yday = new Date(today)
+  yday.setDate(yday.getDate()-1)
+  if (d.toDateString() === today.toDateString()) return 'Today'
+  if (d.toDateString() === yday.toDateString()) return 'Yesterday'
+  return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
+}
+
+function createAvatar(name, color) {
+  const el = document.createElement('div')
+  el.className = 'msg-avatar'
+  el.style.cssText = `background:#111;border-color:${color};color:${color};font-size:12px;`
+  el.textContent = getInitials(name)
+  return el
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 2500)
+}
+
+function updateTransportStatus(state, text) {
+  const dot   = document.getElementById('transport-dot')
+  const label = document.getElementById('status-transport')
+  const hint  = document.getElementById('input-hint')
+  if (dot)   dot.className = `status-dot ${state === 'connected' ? 'online' : 'connecting'}`
+  if (label) label.textContent = text
+  if (hint)  hint.textContent = state === 'connected'
+    ? 'enter to send · shift+enter for newline · mesh active'
+    : `enter to send · ${text}`
+}
+
+function updatePeerCount() {
+  const count = activeTransport?.peerCount ?? 0
+  const el    = document.getElementById('peer-count-status')
+  const hdr   = document.getElementById('peer-count-num')
+  if (el)  el.textContent  = `${count} p2p peer${count !== 1 ? 's' : ''}`
+  if (hdr) hdr.textContent = count + 1
+}
+
+function renderRooms() {
+  const state  = chatApp.getState()
+  const list   = document.getElementById('rooms-list')
+  const countEl = document.getElementById('room-count')
+  const rooms  = Object.values(state.rooms).sort((a, b) => a.createdAt - b.createdAt)
+  countEl.textContent = rooms.length
+  list.innerHTML = ''
+  if (!rooms.length) {
+    list.innerHTML = '<div style="padding:14px;font-family:var(--font-mono);font-size:12px;color:#555;text-align:center;">no rooms yet</div>'
+    return
+  }
+  rooms.forEach(room => {
+    const item    = document.createElement('div')
+    item.className = 'room-item' + (currentRoom === room.id ? ' active' : '')
+    const lastMsg  = room.messages[room.messages.length-1]
+    const lastText = lastMsg ? (lastMsg.text.length > 26 ? lastMsg.text.slice(0,26)+'…' : lastMsg.text) : 'no messages'
+    const unread   = unreadCounts[room.id] || 0
+    item.innerHTML = `<div class="room-hash">#</div><div class="room-info"><div class="room-name">${room.name}</div><div class="room-meta">${lastText}</div></div>${unread ? `<div class="room-unread">${unread}</div>` : ''}`
+    item.addEventListener('click', () => { selectRoom(room.id); closeSidebar() })
+    list.appendChild(item)
+  })
+}
+
+function renderMessages(roomId) {
+  const room = chatApp.getState().rooms[roomId]
+  if (!room) return
+  const container = document.getElementById('messages')
+  container.innerHTML = ''
+  lastMsgDate = null
+  if (!room.messages.length) {
+    container.innerHTML = `<div class="system-msg" style="margin-top:40px">— #${room.name} — start the conversation —</div>`
+    return
+  }
+  room.messages.forEach(msg => appendMessageEl(msg, container, false))
+  scrollToBottom()
+}
+
+async function appendMessageEl(msg, container, animate) {
+  const msgDate = formatDate(msg.ts)
+  if (msgDate !== lastMsgDate) {
+    const d = document.createElement('div')
+    d.className = 'date-divider'
+    d.innerHTML = `<span>${msgDate}</span>`
+    container.appendChild(d)
+    lastMsgDate = msgDate
+  }
+  const isOwn  = msg.authorId === SELF.id
+  const group  = document.createElement('div')
+  group.className = 'msg-group' + (isOwn ? ' own-msg' : '')
+
+  const body   = document.createElement('div')
+  body.className = 'msg-body'
+  const meta   = document.createElement('div')
+  meta.className = 'msg-meta'
+
+  const author = document.createElement('span')
+  author.className = 'msg-author'
+  author.textContent = isOwn ? msg.authorName + ' (you)' : msg.authorName
+  author.style.color = isOwn ? 'var(--accent)' : (msg.authorColor || '#fff')
+
+  const time   = document.createElement('span')
+  time.className = 'msg-time'
+  time.textContent = formatTime(msg.ts)
+
+  meta.append(author, time)
+
+  // Verify signature if present
+  if (msg.sig && msg.pubKey) {
+    const verifyStr = `${msg.authorId}:${msg._id || msg.id}:${msg.text}`
+    const ok = await CryptoID.verify(verifyStr, msg.sig, msg.pubKey).catch(() => false)
+    if (ok) {
+      const badge = document.createElement('span')
+      badge.className = 'msg-verified'
+      badge.textContent = '✓ signed'
+      meta.appendChild(badge)
+    }
+  }
+
+  const text   = document.createElement('div')
+  text.className = 'msg-text'
+  text.textContent = msg.text
+
+  body.append(meta, text)
+  group.append(createAvatar(msg.authorName, msg.authorColor || '#fff'), body)
+  container.appendChild(group)
+
+  if (animate) {
+    group.style.cssText = 'opacity:0;transform:translateY(6px)'
+    requestAnimationFrame(() => {
+      group.style.transition = 'opacity 0.2s,transform 0.2s'
+      group.style.opacity = '1'
+      group.style.transform = 'translateY(0)'
+    })
+  }
+}
+
+function scrollToBottom(smooth) {
+  const el = document.getElementById('messages')
+  el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
+}
+
+function renderPresence(roomId) {
+  const peers     = getPresence(roomId)
+  const container = document.getElementById('presence-peers')
+  container.innerHTML = ''
+  peers.forEach(peer => {
+    const el = document.createElement('div')
+    el.className = 'presence-peer'
+    el.style.cssText = `background:#1A1A1A;border-color:${peer.color};color:${peer.color};`
+    el.innerHTML = `<div class="presence-peer-dot" style="background:${peer.color}"></div>${peer.name}${peer.id === SELF.id ? ' (you)' : ''}`
+    container.appendChild(el)
+  })
+  document.getElementById('peer-count-num').textContent = peers.length
+}
+
+function selectRoom(roomId) {
+  currentRoom = roomId
+  unreadCounts[roomId] = 0
+  document.getElementById('empty-state').style.display = 'none'
+  const cv = document.getElementById('chat-view')
+  cv.style.display = 'flex'
+  cv.style.flexDirection = 'column'
+  const room = chatApp.getState().rooms[roomId]
+  document.getElementById('header-room-name').textContent = room.name
+  document.getElementById('header-room-meta').textContent = `mesh p2p · ${chatApp.log.length} events`
+  document.getElementById('log-count').textContent = `${chatApp.log.length} events`
+  renderMessages(roomId)
+  renderRooms()
+  updatePresence(roomId)
+  renderPresence(roomId)
+  attachTransport(roomId)
+  document.getElementById('msg-input').focus()
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msg-input')
+  const text  = input.value.trim()
+  if (!text || !currentRoom) return
+
+  // Sign the message
+  const tempId = generateUUID()
+  const pubKey = await CryptoID.getPubJwk()
+  const sigStr = `${SELF.id}:${tempId}:${text}`
+  const sig    = await CryptoID.sign(sigStr)
+
+  chatApp.emit({
+    type: 'room.message', roomId: currentRoom,
+    authorId: SELF.id, authorName: SELF.name, authorColor: SELF.color,
+    text, sig, pubKey, _id: tempId,
+  })
+  input.value = ''
+  autoGrow(input)
+  document.getElementById('send-btn').disabled = true
+}
+
+function autoGrow(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px' }
+
+function createRoom(name) {
+  name = name.trim().toLowerCase().replace(/[^a-z0-9-_]/g,'-').replace(/-+/g,'-').slice(0, 32)
+  if (!name) return
+  if (chatApp.getState().rooms[name]) { showToast(`#${name} exists`); selectRoom(name); return }
+  chatApp.emit({ type: 'room.create', roomId: name, name })
+  showToast(`#${name} created`)
+  selectRoom(name)
+}
+
+// Mobile sidebar
+function openSidebar()  { document.getElementById('sidebar').classList.add('open') }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open') }
+
+// ═══════════════════════════════════════════════════════════════════
+// MANUAL PASTE CONNECT
+// ═══════════════════════════════════════════════════════════════════
+
+let _manualMode = null // 'offerer' | 'answerer'
+
+async function openManualConnect() {
+  document.getElementById('paste-modal').classList.add('open')
+  document.getElementById('paste-offer-text').textContent = 'generating offer…'
+  _manualMode = 'offerer'
+  if (!activeTransport) attachTransport(currentRoom || 'general')
+  try {
+    const offer = await activeTransport.createManualOffer()
+    document.getElementById('paste-offer-text').textContent = offer
+    document.getElementById('paste-step-label').textContent =
+      'Copy this offer → send to friend → paste their answer below.'
+  } catch (e) {
+    document.getElementById('paste-offer-text').textContent = 'error: ' + e.message
+  }
+}
+
+document.getElementById('paste-copy-btn').addEventListener('click', () => {
+  const text = document.getElementById('paste-offer-text').textContent
+  navigator.clipboard?.writeText(text).then(() => showToast('copied')).catch(() => {})
+})
+
+document.getElementById('paste-submit-btn').addEventListener('click', async () => {
+  const raw = document.getElementById('paste-input').value.trim()
+  if (!raw) return
+  const data = safeJsonParse(raw)
+  if (!data?._manual) { showToast('invalid paste'); return }
+  if (!activeTransport) attachTransport(currentRoom || 'general')
+  try {
+    if (data.sdp?.type === 'offer') {
+      // They sent an offer — we're the answerer
+      const answer = await activeTransport.acceptManualOffer(raw)
+      document.getElementById('paste-offer-text').textContent = answer
+      document.getElementById('paste-step-label').textContent = 'Copy this answer → send back to your friend.'
+      document.getElementById('paste-input').value = ''
+      showToast('send that answer back to them')
+    } else if (data.sdp?.type === 'answer') {
+      // They sent an answer to our offer
+      const ok = await activeTransport.applyManualAnswer(raw)
+      if (ok) { document.getElementById('paste-modal').classList.remove('open'); showToast('connected!') }
+      else showToast('failed to apply answer')
+    }
+  } catch (e) { showToast('error: ' + e.message) }
+})
+
+document.getElementById('paste-close-btn').addEventListener('click', () =>
+  document.getElementById('paste-modal').classList.remove('open'))
+
+// ═══════════════════════════════════════════════════════════════════
+// EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════════════
+
+chatApp.subscribe((state, event) => {
+  if (event.type === 'room.create') { renderRooms(); return }
+  if (event.type === 'room.message') {
+    if (event.roomId === currentRoom) {
+      const room = state.rooms[event.roomId]
+      const msg  = room.messages[room.messages.length-1]
+      const container = document.getElementById('messages')
+      const empty = container.querySelector('.system-msg')
+      if (empty) empty.remove()
+      appendMessageEl(msg, container, true)
+      scrollToBottom(true)
+      document.getElementById('header-room-meta').textContent = `mesh p2p · ${chatApp.log.length} events`
+      document.getElementById('log-count').textContent = `${chatApp.log.length} events`
+    } else {
+      unreadCounts[event.roomId] = (unreadCounts[event.roomId] || 0) + 1
+    }
+    renderRooms()
+  }
+})
+
+document.getElementById('msg-input').addEventListener('input', function() {
+  autoGrow(this)
+  document.getElementById('send-btn').disabled = !this.value.trim()
+})
+document.getElementById('msg-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+})
+document.getElementById('send-btn').addEventListener('click', sendMessage)
+
+document.getElementById('add-room-toggle').addEventListener('click', () => {
+  const f = document.getElementById('new-room-form')
+  f.classList.toggle('visible')
+  if (f.classList.contains('visible')) document.getElementById('room-input').focus()
+})
+document.getElementById('room-create-btn').addEventListener('click', () => {
+  const i = document.getElementById('room-input')
+  createRoom(i.value); i.value = ''
+  document.getElementById('new-room-form').classList.remove('visible')
+})
+document.getElementById('room-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { createRoom(this.value); this.value = ''; document.getElementById('new-room-form').classList.remove('visible') }
+  if (e.key === 'Escape') document.getElementById('new-room-form').classList.remove('visible')
+})
+
+document.getElementById('manual-connect-btn').addEventListener('click', openManualConnect)
+document.getElementById('menu-toggle').addEventListener('click', openSidebar)
+
+// Close sidebar when tapping outside on mobile
+document.getElementById('main').addEventListener('click', closeSidebar)
+
+// ═══════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════
+
+// Init crypto identity (async, non-blocking)
+CryptoID.init().catch(() => {})
+
+// Init identity UI
+const av = document.getElementById('self-avatar')
+av.textContent = getInitials(SELF.name)
+av.style.cssText = `background:#111;border:2px solid ${SELF.color};color:${SELF.color};`
+document.getElementById('self-name').textContent = SELF.name
+document.getElementById('node-subtitle').textContent = `sovereign mesh · ${BOOTSTRAP_URLS[0]}`
+
+// Seed default rooms
+const INITIAL_ROOMS = ['general', 'random', 'dev-talk']
+INITIAL_ROOMS.forEach(name => { if (!chatApp.getState().rooms[name]) chatApp.emit({ type: 'room.create', roomId: name, name }) })
+const general = chatApp.getState().rooms['general']
+if (general && !general.messages.length) {
+  chatApp.emit({ type: 'room.message', roomId: 'general', authorId: 'system', authorName: 'Trinity', authorColor: '#FFE600',
+    text: 'Welcome to Trinity. Decentralized mesh — each node holds the network. Messages signed with your keypair. Zero servers in the data path.' })
+}
+
+renderRooms()
+setTimeout(() => {
+  if (!currentRoom) {
+    selectRoom('general')
+    updatePresence('general')
+    renderPresence('general')
+  }
+}, 50)
+
+// Presence keepalive
+setInterval(() => {
+  if (currentRoom) { updatePresence(currentRoom); renderPresence(currentRoom); updatePeerCount() }
+}, 5000)
+</script>
+</body>
+</html>
