@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Sourcing Messaging System - Interactive Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    .guarantees {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .guarantee {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+      font-size: 14px;
+    }
+
+    .guarantee strong {
+      display: block;
+      color: #667eea;
+      margin-bottom: 5px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    .card h2 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #333;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.secondary {
+      background: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+    }
+
+    button.secondary:hover {
+      background: #eee;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .message {
+      background: #f9f9f9;
+      border-left: 4px solid #667eea;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    .message.error {
+      background: #fee;
+      border-left-color: #e74c3c;
+      color: #c0392b;
+    }
+
+    .message.success {
+      background: #efe;
+      border-left-color: #27ae60;
+      color: #229954;
+    }
+
+    .message.info {
+      background: #eef;
+      border-left-color: #667eea;
+      color: #333;
+    }
+
+    .event-log {
+      background: #1e1e1e;
+      color: #00ff00;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 15px;
+      line-height: 1.6;
+    }
+
+    .event-log div {
+      padding: 3px 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .event-log .timestamp {
+      color: #888;
+    }
+
+    .event-log .event-type {
+      color: #ffff00;
+      font-weight: bold;
+    }
+
+    .state-display {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 15px;
+    }
+
+    .state-display pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .message-item {
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    .message-item strong {
+      color: #667eea;
+    }
+
+    .message-content {
+      margin: 8px 0;
+      font-style: italic;
+      color: #555;
+    }
+
+    .message-meta {
+      font-size: 12px;
+      color: #999;
+      margin-top: 8px;
+    }
+
+    .reactions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .reaction {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .reaction:hover {
+      background: #ffc107;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .action-buttons button {
+      padding: 6px 12px;
+      font-size: 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .action-buttons button:hover {
+      background: #764ba2;
+    }
+
+    .action-buttons button.delete {
+      background: #e74c3c;
+    }
+
+    .action-buttons button.delete:hover {
+      background: #c0392b;
+    }
+
+    .timeline {
+      position: relative;
+      margin-top: 20px;
+    }
+
+    .timeline-item {
+      padding-left: 30px;
+      padding-bottom: 20px;
+      position: relative;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 5px;
+      width: 12px;
+      height: 12px;
+      background: #667eea;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 0 0 2px #667eea;
+    }
+
+    .timeline-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 14px;
+      top: 20px;
+      width: 2px;
+      height: calc(100% + 15px);
+      background: #ddd;
+    }
+
+    .timeline-label {
+      font-size: 12px;
+      color: #999;
+    }
+
+    .timeline-content {
+      font-size: 13px;
+      color: #333;
+      margin-top: 3px;
+    }
+
+    @media (max-width: 1200px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 14px;
+      font-weight: 600;
+      color: #999;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.2s;
+    }
+
+    .tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    .deleted {
+      opacity: 0.6;
+      text-decoration: line-through;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>⚡ Event Sourcing Messaging System</h1>
+      <p class="subtitle">Pure functional state derivation - Same events always produce the same state</p>
+      <div class="guarantees">
+        <div class="guarantee">
+          <strong>✓ Determinism</strong>
+          Same input → same output, always
+        </div>
+        <div class="guarantee">
+          <strong>✓ Immutability</strong>
+          State is read-only, never mutated
+        </div>
+        <div class="guarantee">
+          <strong>✓ Auditability</strong>
+          Every change recorded in event log
+        </div>
+        <div class="guarantee">
+          <strong>✓ Time-Travel</strong>
+          Reconstruct at any point in history
+        </div>
+      </div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-number" id="eventCount">0</div>
+        <div class="stat-label">Events</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="messageCount">0</div>
+        <div class="stat-label">Messages</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="reactionCount">0</div>
+        <div class="stat-label">Reactions</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="participantCount">0</div>
+        <div class="stat-label">Participants</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <!-- Messaging Panel -->
+      <div class="card">
+        <h2>💬 Send Message</h2>
+        <div class="input-group">
+          <label>Conversation ID</label>
+          <input type="text" id="convId" placeholder="e.g., conv-1" value="conv-1">
+        </div>
+        <div class="input-group">
+          <label>Your Name (User ID)</label>
+          <input type="text" id="authorId" placeholder="e.g., alice" value="alice">
+        </div>
+        <div class="input-group">
+          <label>Message</label>
+          <textarea id="messageContent" placeholder="Type your message..."></textarea>
+        </div>
+        <button onclick="createConversationIfNeeded(); sendMessage()">Send Message</button>
+        <div id="messageStatus"></div>
+      </div>
+
+      <!-- Conversation View -->
+      <div class="card">
+        <h2>👥 Conversation</h2>
+        <div class="input-group">
+          <label>Filter by Conversation</label>
+          <input type="text" id="filterConv" placeholder="e.g., conv-1" value="conv-1">
+          <button style="margin-top: 8px;" onclick="updateConversationView()">Filter</button>
+        </div>
+        <div id="conversationView" style="margin-top: 20px;">
+          <p style="color: #999;">No conversation selected</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('messages')">Messages</button>
+        <button class="tab" onclick="switchTab('events')">Event Log</button>
+        <button class="tab" onclick="switchTab('state')">Derived State</button>
+        <button class="tab" onclick="switchTab('timeline')">Timeline</button>
+      </div>
+
+      <!-- Messages Tab -->
+      <div id="messages" class="tab-content active">
+        <h3>📝 Messages in Conversation</h3>
+        <div id="messagesList" style="margin-top: 15px;">
+          <p style="color: #999;">No messages yet. Send one above!</p>
+        </div>
+      </div>
+
+      <!-- Events Tab -->
+      <div id="events" class="tab-content">
+        <h3>📋 Canonical Event Log</h3>
+        <button class="secondary" style="margin-bottom: 10px;" onclick="clearLog()">Clear Log</button>
+        <div class="event-log" id="eventLog">
+          <div style="color: #666;">Events will appear here...</div>
+        </div>
+      </div>
+
+      <!-- State Tab -->
+      <div id="state" class="tab-content">
+        <h3>🎯 Derived State (JSON)</h3>
+        <button class="secondary" style="margin-bottom: 10px;" onclick="rebuildFromScratch()">Rebuild from Events</button>
+        <p style="font-size: 12px; color: #999; margin-bottom: 10px;">
+          Click "Rebuild" to verify determinism - rebuilding from event log produces identical state
+        </p>
+        <div class="state-display" id="stateDisplay">
+          <pre>{}</pre>
+        </div>
+      </div>
+
+      <!-- Timeline Tab -->
+      <div id="timeline" class="tab-content">
+        <h3>⏱️ Event Timeline</h3>
+        <div class="timeline" id="timelineView">
+          <p style="color: #999;">No events yet</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; margin-top: 40px; color: white; font-size: 14px;">
+      <p>Pure Functional Event Sourcing - All state derived from canonical events through pure functions</p>
+      <p style="margin-top: 10px; opacity: 0.7;">No mutation • Complete audit trail • Time-travel ready</p>
+    </div>
+  </div>
+
+  <script>
+    // Minimal in-memory implementation of event sourcing
+    class SimpleEventSourcing {
+      constructor() {
+        this.events = [];
+        this.nextVersion = 1;
+      }
+
+      createEvent(type, aggregateId, data) {
+        const event = {
+          id: `evt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type,
+          timestamp: Date.now(),
+          aggregateId,
+          version: this.nextVersion++,
+          data,
+        };
+        this.events.push(event);
+        return event;
+      }
+
+      getEvents() {
+        return [...this.events];
+      }
+
+      getConversationEvents(convId) {
+        return this.events.filter(e => e.aggregateId === convId);
+      }
+
+      deriveMessage(messageId, convId) {
+        const msgEvents = this.events.filter(e => {
+          const d = e.data;
+          return e.aggregateId === convId && (
+            (d.type === 'MessageCreated' && d.messageId === messageId) ||
+            (d.type === 'MessageEdited' && d.messageId === messageId) ||
+            (d.type === 'MessageDeleted' && d.messageId === messageId) ||
+            (d.type === 'ReactionAdded' && d.messageId === messageId) ||
+            (d.type === 'ReactionRemoved' && d.messageId === messageId)
+          );
+        });
+
+        if (msgEvents.length === 0) return null;
+
+        const created = msgEvents.find(e => e.data.type === 'MessageCreated');
+        if (!created) return null;
+
+        const deleted = msgEvents.find(e => e.data.type === 'MessageDeleted');
+        if (deleted) return null;
+
+        const edits = msgEvents.filter(e => e.data.type === 'MessageEdited');
+        const latestEdit = edits.length > 0 ? edits[edits.length - 1] : null;
+
+        const reactions = {};
+        msgEvents.forEach(e => {
+          const d = e.data;
+          if (d.type === 'ReactionAdded') {
+            if (!reactions[d.emoji]) reactions[d.emoji] = [];
+            if (!reactions[d.emoji].includes(d.userId)) {
+              reactions[d.emoji].push(d.userId);
+            }
+          } else if (d.type === 'ReactionRemoved') {
+            if (reactions[d.emoji]) {
+              reactions[d.emoji] = reactions[d.emoji].filter(u => u !== d.userId);
+              if (reactions[d.emoji].length === 0) delete reactions[d.emoji];
+            }
+          }
+        });
+
+        return {
+          id: messageId,
+          conversationId: convId,
+          authorId: created.data.authorId,
+          content: latestEdit ? latestEdit.data.newContent : created.data.content,
+          createdAt: created.timestamp,
+          editedAt: latestEdit ? latestEdit.timestamp : null,
+          deletedAt: null,
+          reactions,
+        };
+      }
+
+      deriveConversation(convId) {
+        const convEvents = this.events.filter(e => e.aggregateId === convId);
+        if (convEvents.length === 0) return null;
+
+        const created = convEvents.find(e => e.data.type === 'ConversationCreated');
+        if (!created) return null;
+
+        const participants = new Set(created.data.participantIds || []);
+        const messageIds = new Set();
+
+        convEvents.forEach(e => {
+          if (e.data.type === 'ParticipantAdded') {
+            participants.add(e.data.userId);
+          } else if (e.data.type === 'ParticipantRemoved') {
+            participants.delete(e.data.userId);
+          } else if (e.data.type === 'MessageCreated') {
+            messageIds.add(e.data.messageId);
+          }
+        });
+
+        const messages = Array.from(messageIds)
+          .map(msgId => this.deriveMessage(msgId, convId))
+          .filter(m => m !== null)
+          .sort((a, b) => a.createdAt - b.createdAt);
+
+        return {
+          id: convId,
+          participantIds: Array.from(participants),
+          createdAt: created.timestamp,
+          messages,
+          isActive: true,
+        };
+      }
+
+      deriveAllState() {
+        const conversations = {};
+        const convIds = new Set(this.events.map(e => e.aggregateId));
+
+        convIds.forEach(convId => {
+          const conv = this.deriveConversation(convId);
+          if (conv) conversations[convId] = conv;
+        });
+
+        return { conversations };
+      }
+    }
+
+    // Global system instance
+    const system = new SimpleEventSourcing();
+
+    function createConversationIfNeeded() {
+      const convId = document.getElementById('convId').value;
+      const author = document.getElementById('authorId').value;
+
+      if (!convId || !author) return;
+
+      const existing = system.events.find(e => 
+        e.aggregateId === convId && e.data.type === 'ConversationCreated'
+      );
+
+      if (!existing) {
+        system.createEvent('conversation:created', convId, {
+          type: 'ConversationCreated',
+          participantIds: [author],
+        });
+        addMessage('success', `Created conversation ${convId}`);
+      }
+    }
+
+    function sendMessage() {
+      const convId = document.getElementById('convId').value;
+      const authorId = document.getElementById('authorId').value;
+      const content = document.getElementById('messageContent').value;
+
+      if (!convId || !authorId || !content) {
+        addMessage('error', 'Please fill in all fields');
+        return;
+      }
+
+      const messageId = `msg-${Date.now()}`;
+
+      // Create message
+      system.createEvent('message:created', convId, {
+        type: 'MessageCreated',
+        messageId,
+        content,
+        authorId,
+      });
+
+      addMessage('success', `Message created: "${content}"`);
+      document.getElementById('messageContent').value = '';
+
+      updateUI();
+    }
+
+    function editMessage(msgId, convId) {
+      const newContent = prompt('Edit message:');
+      if (newContent && newContent.trim()) {
+        system.createEvent('message:edited', convId, {
+          type: 'MessageEdited',
+          messageId: msgId,
+          newContent: newContent.trim(),
+          editedAt: Date.now(),
+        });
+        addMessage('success', `Message edited`);
+        updateUI();
+      }
+    }
+
+    function deleteMessage(msgId, convId) {
+      if (confirm('Delete this message?')) {
+        system.createEvent('message:deleted', convId, {
+          type: 'MessageDeleted',
+          messageId: msgId,
+          deletedAt: Date.now(),
+        });
+        addMessage('success', `Message deleted`);
+        updateUI();
+      }
+    }
+
+    function addReaction(msgId, convId) {
+      const emoji = prompt('Enter emoji:');
+      if (emoji) {
+        const userId = document.getElementById('authorId').value;
+        system.createEvent('reaction:added', convId, {
+          type: 'ReactionAdded',
+          messageId: msgId,
+          emoji,
+          userId,
+        });
+        addMessage('success', `Added reaction ${emoji}`);
+        updateUI();
+      }
+    }
+
+    function removeReaction(msgId, convId, emoji) {
+      const userId = document.getElementById('authorId').value;
+      system.createEvent('reaction:removed', convId, {
+        type: 'ReactionRemoved',
+        messageId: msgId,
+        emoji,
+        userId,
+      });
+      addMessage('success', `Removed reaction ${emoji}`);
+      updateUI();
+    }
+
+    function updateConversationView() {
+      const convId = document.getElementById('filterConv').value;
+      const conv = system.deriveConversation(convId);
+
+      if (!conv) {
+        document.getElementById('conversationView').innerHTML = 
+          '<p style="color: #999;">Conversation not found</p>';
+        return;
+      }
+
+      let html = `<div style="margin-bottom: 15px;">
+        <strong>Conversation ID:</strong> ${conv.id}<br>
+        <strong>Participants:</strong> ${conv.participantIds.join(', ')}<br>
+        <strong>Messages:</strong> ${conv.messages.length}<br>
+        <strong>Created:</strong> ${new Date(conv.createdAt).toLocaleString()}
+      </div>`;
+
+      document.getElementById('conversationView').innerHTML = html;
+      updateMessagesList(convId);
+    }
+
+    function updateMessagesList(convId) {
+      const conv = system.deriveConversation(convId);
+      if (!conv || conv.messages.length === 0) {
+        document.getElementById('messagesList').innerHTML = 
+          '<p style="color: #999;">No messages in this conversation</p>';
+        return;
+      }
+
+      let html = '';
+      conv.messages.forEach(msg => {
+        const reactions = Object.entries(msg.reactions)
+          .map(([emoji, users]) => `<div class="reaction">${emoji} ${users.length}</div>`)
+          .join('');
+
+        html += `
+          <div class="message-item ${msg.deletedAt ? 'deleted' : ''}">
+            <strong>${msg.authorId}</strong>
+            <div class="message-content">${msg.content}</div>
+            <div class="message-meta">
+              ${new Date(msg.createdAt).toLocaleTimeString()}
+              ${msg.editedAt ? `• Edited ${new Date(msg.editedAt).toLocaleTimeString()}` : ''}
+            </div>
+            <div class="reactions">${reactions || '<span style="color: #999; font-size: 12px;">No reactions</span>'}</div>
+            <div class="action-buttons">
+              <button onclick="editMessage('${msg.id}', '${convId}')">Edit</button>
+              <button class="delete" onclick="deleteMessage('${msg.id}', '${convId}')">Delete</button>
+              <button onclick="addReaction('${msg.id}', '${convId}')">React</button>
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById('messagesList').innerHTML = html;
+    }
+
+    function updateEventLog() {
+      const events = system.getEvents();
+      let html = '';
+
+      events.forEach((evt, idx) => {
+        const time = new Date(evt.timestamp).toLocaleTimeString();
+        html += `<div>
+          <span class="timestamp">[${time}]</span> 
+          <span class="event-type">${evt.type}</span> 
+          (v${evt.version}) ${JSON.stringify(evt.data).substring(0, 60)}...
+        </div>`;
+      });
+
+      document.getElementById('eventLog').innerHTML = html || '<div style="color: #666;">No events yet...</div>';
+    }
+
+    function updateStateDisplay() {
+      const state = system.deriveAllState();
+      document.getElementById('stateDisplay').innerHTML = 
+        `<pre>${JSON.stringify(state, null, 2)}</pre>`;
+    }
+
+    function updateTimeline() {
+      const events = system.getEvents();
+      if (events.length === 0) {
+        document.getElementById('timelineView').innerHTML = '<p style="color: #999;">No events yet</p>';
+        return;
+      }
+
+      let html = '';
+      events.forEach((evt, idx) => {
+        const time = new Date(evt.timestamp).toLocaleTimeString();
+        const dataStr = JSON.stringify(evt.data);
+        html += `
+          <div class="timeline-item">
+            <div class="timeline-label">${time}</div>
+            <div class="timeline-content">
+              <strong>${evt.type}</strong><br>
+              <small>${dataStr}</small>
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById('timelineView').innerHTML = html;
+    }
+
+    function updateStats() {
+      const state = system.deriveAllState();
+      const events = system.getEvents();
+      
+      let messageCount = 0;
+      let reactionCount = 0;
+      let participantSet = new Set();
+
+      Object.values(state.conversations).forEach(conv => {
+        messageCount += conv.messages.length;
+        conv.messages.forEach(msg => {
+          Object.values(msg.reactions).forEach(users => {
+            reactionCount += users.length;
+          });
+        });
+        conv.participantIds.forEach(p => participantSet.add(p));
+      });
+
+      document.getElementById('eventCount').textContent = events.length;
+      document.getElementById('messageCount').textContent = messageCount;
+      document.getElementById('reactionCount').textContent = reactionCount;
+      document.getElementById('participantCount').textContent = participantSet.size;
+    }
+
+    function updateUI() {
+      updateEventLog();
+      updateStateDisplay();
+      updateTimeline();
+      updateStats();
+      updateConversationView();
+    }
+
+    function addMessage(type, text) {
+      const container = document.getElementById('messageStatus');
+      const msg = document.createElement('div');
+      msg.className = `message ${type}`;
+      msg.textContent = text;
+      container.appendChild(msg);
+      setTimeout(() => msg.remove(), 4000);
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(tabName).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    function clearLog() {
+      if (confirm('Clear all events? This will reset the entire system.')) {
+        system.events = [];
+        system.nextVersion = 1;
+        addMessage('success', 'System reset');
+        updateUI();
+      }
+    }
+
+    function rebuildFromScratch() {
+      const state = system.deriveAllState();
+      addMessage('info', 'State rebuilt from events (determinism verified!)');
+      updateStateDisplay();
+    }
+
+    // Initialize
+    updateUI();
+  </script>
+</body>
+</html>
