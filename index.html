@@ -1,0 +1,231 @@
+<html><head><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-sans);background:transparent;color:var(--color-text-primary)}
+.wrap{padding:1rem 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:1rem}
+.stat{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px;text-align:center}
+.stat-val{font-size:22px;font-weight:500}
+.stat-lbl{font-size:12px;color:var(--color-text-secondary);margin-top:2px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1rem}
+.card h3{font-size:14px;font-weight:500;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em}
+input,textarea{width:100%;padding:8px 10px;margin:4px 0;background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);color:var(--color-text-primary);font-size:14px;font-family:var(--font-sans)}
+textarea{resize:vertical;min-height:60px}
+.btn-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+button{padding:7px 14px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-primary);font-size:13px;cursor:pointer}
+button:hover{background:var(--color-background-secondary)}
+button.primary{background:var(--color-background-info);border-color:var(--color-border-info);color:var(--color-text-info);font-weight:500}
+button.primary:hover{opacity:.85}
+.messages{max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.msg{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 12px}
+.msg-author{font-weight:500;font-size:13px}
+.msg-body{font-size:14px;margin:4px 0 6px}
+.msg-meta{font-size:11px;color:var(--color-text-secondary);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hash-chip{font-family:var(--font-mono);font-size:10px;background:var(--color-background-tertiary);border:0.5px solid var(--color-border-tertiary);border-radius:4px;padding:2px 6px;color:var(--color-text-secondary)}
+.chain-log{font-family:var(--font-mono);font-size:11px;line-height:1.8;max-height:220px;overflow-y:auto}
+.chain-entry{display:flex;align-items:flex-start;gap:8px;padding:3px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.chain-entry:last-child{border-bottom:none}
+.block-num{color:var(--color-text-tertiary);min-width:28px}
+.block-hash{color:#1D9E75;min-width:90px}
+.block-prev{color:#7F77DD}
+.block-type{color:var(--color-text-secondary);flex:1}
+.valid-badge{font-size:11px;padding:3px 8px;border-radius:4px;font-weight:500}
+.valid{background:var(--color-background-success);color:var(--color-text-success);border:0.5px solid var(--color-border-success)}
+.invalid{background:var(--color-background-danger);color:var(--color-text-danger);border:0.5px solid var(--color-border-danger)}
+.chain-status{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.connector{color:var(--color-text-tertiary);font-size:10px}
+.empty{color:var(--color-text-secondary);font-size:13px;text-align:center;padding:24px 0}
+</style>
+
+</head><body><div class="wrap">
+<h2 class="sr-only">Blockchain-backed event sourcing chat — each message is hashed and chained for tamper detection</h2>
+
+<div class="stats">
+  <div class="stat"><div class="stat-val" id="sBlocks">2</div><div class="stat-lbl">Blocks</div></div>
+  <div class="stat"><div class="stat-val" id="sMsgs">2</div><div class="stat-lbl">Messages</div></div>
+  <div class="stat"><div class="stat-val" id="sUsers">1</div><div class="stat-lbl">Participants</div></div>
+  <div class="stat"><div class="stat-val" id="sChain" style="font-size: 16px; color: var(--color-text-success);">✓ Valid</div><div class="stat-lbl">Chain</div></div>
+</div>
+
+<div class="card">
+  <h3>New message</h3>
+  <input id="iAuthor" value="satoshi" placeholder="Your name">
+  <textarea id="iMsg" placeholder="Type a message… Enter to send"></textarea>
+  <div class="btn-row">
+    <button class="primary" onclick="sendMsg()">Send ↗</button>
+    <button onclick="tamperDemo()">Tamper demo</button>
+    <button onclick="resetChain()">Reset</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Messages</h3>
+  <div class="messages" id="msgList">
+      <div class="msg">
+        <div class="msg-author">satoshi</div>
+        <div class="msg-body">b v</div>
+        <div class="msg-meta">
+          <span>1:19:23 AM</span>
+          <span class="hash-chip">block #0</span>
+          <span class="hash-chip">aa92dccc…</span>
+        </div>
+      </div>
+      <div class="msg">
+        <div class="msg-author">satoshi</div>
+        <div class="msg-body">nbgv</div>
+        <div class="msg-meta">
+          <span>1:19:31 AM</span>
+          <span class="hash-chip">block #1</span>
+          <span class="hash-chip">15ef7e02…</span>
+        </div>
+      </div></div>
+</div>
+
+<div class="card">
+  <h3>Block chain</h3>
+  <div class="chain-status">
+    <span id="chainValid" class="valid-badge valid">Chain valid</span>
+    <span style="font-size:12px;color:var(--color-text-secondary)" id="chainDesc">2 blocks, all hashes verified</span>
+  </div>
+  <div class="chain-log" id="chainLog">
+      <div class="chain-entry">
+        <span class="block-num">#0</span>
+        <span class="block-hash">aa92dccc…</span>
+        <span class="connector">←</span>
+        <span class="block-prev">genesis</span>
+        <span class="block-type">MSG_CREATED · satoshi</span>
+      </div>
+      <div class="chain-entry">
+        <span class="block-num">#1</span>
+        <span class="block-hash">15ef7e02…</span>
+        <span class="connector">←</span>
+        <span class="block-prev">aa92dccc…</span>
+        <span class="block-type">MSG_CREATED · satoshi</span>
+      </div></div>
+</div>
+</div>
+
+<script>
+let chain = [];
+
+async function sha256(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function addBlock(type, data){
+  const prevHash = chain.length ? chain[chain.length-1].hash : '0'.repeat(64);
+  const index = chain.length;
+  const timestamp = Date.now();
+  const payload = JSON.stringify({index, type, data, prevHash, timestamp});
+  const hash = await sha256(payload);
+  chain.push({index, type, data, prevHash, timestamp, hash});
+  render();
+}
+
+async function verifyChain(){
+  for(let i=0;i<chain.length;i++){
+    const b = chain[i];
+    const expectedPrev = i===0 ? '0'.repeat(64) : chain[i-1].hash;
+    if(b.prevHash !== expectedPrev) return {valid:false, at:i};
+    const payload = JSON.stringify({index:b.index, type:b.type, data:b.data, prevHash:b.prevHash, timestamp:b.timestamp});
+    const h = await sha256(payload);
+    if(h !== b.hash) return {valid:false, at:i};
+  }
+  return {valid:true};
+}
+
+function deriveMessages(){
+  const msgs = [];
+  for(const b of chain){
+    if(b.type==='MSG_CREATED'){
+      msgs.push({id:b.index, author:b.data.author, text:b.data.text, ts:b.timestamp, hash:b.hash.slice(0,8), blockIdx:b.index});
+    }
+  }
+  return msgs;
+}
+
+function short(h){return h.slice(0,8)+'…'}
+
+async function render(){
+  const msgs = deriveMessages();
+  const users = new Set(msgs.map(m=>m.author));
+
+  document.getElementById('sBlocks').textContent = chain.length;
+  document.getElementById('sMsgs').textContent = msgs.length;
+  document.getElementById('sUsers').textContent = users.size;
+
+  const msgList = document.getElementById('msgList');
+  if(!msgs.length){
+    msgList.innerHTML='<div class="empty">No messages yet</div>';
+  } else {
+    msgList.innerHTML = msgs.map(m=>`
+      <div class="msg">
+        <div class="msg-author">${m.author}</div>
+        <div class="msg-body">${m.text}</div>
+        <div class="msg-meta">
+          <span>${new Date(m.ts).toLocaleTimeString()}</span>
+          <span class="hash-chip">block #${m.blockIdx}</span>
+          <span class="hash-chip">${short(m.hash)}</span>
+        </div>
+      </div>`).join('');
+    msgList.scrollTop = msgList.scrollHeight;
+  }
+
+  const logEl = document.getElementById('chainLog');
+  if(!chain.length){
+    logEl.innerHTML='<div class="empty">No blocks yet</div>';
+  } else {
+    logEl.innerHTML = chain.map((b,i)=>`
+      <div class="chain-entry">
+        <span class="block-num">#${i}</span>
+        <span class="block-hash">${short(b.hash)}</span>
+        <span class="connector">←</span>
+        <span class="block-prev">${i===0?'genesis':short(b.prevHash)}</span>
+        <span class="block-type">${b.type}${b.data.author?' · '+b.data.author:''}</span>
+      </div>`).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  const v = await verifyChain();
+  const badge = document.getElementById('chainValid');
+  const desc = document.getElementById('chainDesc');
+  document.getElementById('sChain').textContent = v.valid ? '✓ Valid' : '✗ Broken';
+  document.getElementById('sChain').style.color = v.valid ? 'var(--color-text-success)' : 'var(--color-text-danger)';
+  if(v.valid){
+    badge.className='valid-badge valid';
+    badge.textContent='Chain valid';
+    desc.textContent = chain.length ? `${chain.length} blocks, all hashes verified` : 'Genesis block ready';
+  } else {
+    badge.className='valid-badge invalid';
+    badge.textContent='Chain broken!';
+    desc.textContent=`Tamper detected at block #${v.at}`;
+  }
+}
+
+async function sendMsg(){
+  const author = document.getElementById('iAuthor').value.trim()||'anon';
+  const text = document.getElementById('iMsg').value.trim();
+  if(!text) return;
+  await addBlock('MSG_CREATED',{author,text});
+  document.getElementById('iMsg').value='';
+}
+
+async function tamperDemo(){
+  if(!chain.length){alert('Send a message first!');return;}
+  const target = Math.floor(Math.random()*chain.length);
+  chain[target].data = {...chain[target].data, text:'[TAMPERED BLOCK]'};
+  await render();
+}
+
+async function resetChain(){
+  chain=[];
+  await render();
+}
+
+document.getElementById('iMsg').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}
+});
+
+render();
+</script>
+</body></html>
